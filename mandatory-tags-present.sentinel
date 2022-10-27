@@ -1,0 +1,58 @@
+import "tfplan/v2" as tfplan
+import "types"
+
+param actions default [
+	["no-op"],
+	["create"],
+	["update"],
+]
+
+param required_tag_key default "Project"
+
+
+param required_tag_values default [
+    "staging", 
+    "production", 
+    "development", 
+    "tf-ecs-consul",
+    ]
+
+
+ec2_instances = filter tfplan.resource_changes as _, rc {
+	rc.type is "aws_instance" and
+		rc.mode is "managed" and
+		rc.change.actions in actions
+}
+
+# debug = func(enum) {
+#     for enum as item {
+#         print(enum[item].change.after.tags_all[required_tag_key])
+#         print(enum[item].change.after.tags_all[required_tag_key] in required_tag_values)
+#     }
+#     return undefined
+# }
+
+find_env_tags_violations = func(resources, required_tag_names, required_tag_values) {
+    key_violations = filter resources as r {resources[r].change.after.tags_all not contains required_tag_key}
+    value_violations = filter resources as r {resources[r].change.after.tags_all[required_tag_key] not in required_tag_values}
+    return {"key_violations": key_violations, "value_violations": value_violations}
+  }
+
+
+violating_instances = find_env_tags_violations(ec2_instances, required_tag_key, required_tag_values)
+
+# This rule ensures that configured mandatory tag keys are present
+# for all aws_instance resources in the terraform configuration
+required_tag_keys_compliant = rule when length(violating_instances.key_violations) > 0 {
+    false
+}
+
+# This rule ensures that configured mandatory tag values are present
+# for all aws_instance resources in the terraform configuration
+required_tag_values_compliant = rule when length(violating_instances.value_violations) > 0 {
+    false
+}
+
+main = rule {
+    required_tag_keys_compliant and required_tag_values_compliant
+}
