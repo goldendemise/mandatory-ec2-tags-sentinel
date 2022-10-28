@@ -36,7 +36,8 @@ find_env_tags_violations = func(resources, required_tag_names, required_tag_valu
 get_violations = func(violations_map) {
 	is_compliant = {"keys": true, "values": true}
 	if length(violations_map.key_violations) > 0 {
-		print("Instance missing required key:", required_tag_key, "required values are", required_tag_values)
+		print("Instance missing required key:", required_tag_key)
+		print("The required key", required_tag_key, "must be any of", required_tag_values)
 		is_compliant["keys"] = false
 	}
 	if length(violations_map.value_violations) > 0 {
